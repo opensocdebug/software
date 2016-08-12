@@ -46,13 +46,16 @@ static int memory_write_bulk(struct osd_context *ctx, uint16_t modid,
 
     uint16_t psize = osd_get_max_pkt_len(ctx);
     uint16_t wordsperpacket = psize - 2;
-    size_t numwords = size/2;
+    
 
     uint16_t *packet = malloc((psize+1)*2);
 
     struct osd_memory_descriptor *mem;
     mem = ctx->system_info->modules[modid].descriptor.memory;
 
+    size_t numwords = size/(mem->data_width >> 3);
+    size_t numflits = size/2;
+    
     size_t hlen = 1; // control word
     hlen += ((mem->addr_width + 15) >> 4);
     uint16_t *header = &packet[3];
@@ -75,8 +78,8 @@ static int memory_write_bulk(struct osd_context *ctx, uint16_t modid,
 
     int curword = 0;
 
-    for (size_t i = 0; i < numwords; i++) {
-        packet[3+curword] = (data[i*2+1] << 8) | data[i*2];
+    for (size_t i = 0; i < numflits; i++) {        
+	packet[3+curword] = (data[i*2+1] << 8) | data[i*2];
         curword++;
 
         if (curword == wordsperpacket) {
@@ -85,7 +88,6 @@ static int memory_write_bulk(struct osd_context *ctx, uint16_t modid,
             curword = 0;
         }
     }
-
     if (curword != 0) {
         packet[0] = curword + 2;
         osd_send_packet(ctx, packet);
@@ -173,12 +175,15 @@ static int memory_read_bulk(struct osd_context *ctx, uint16_t modid,
                             uint8_t* data, size_t size) {
     uint16_t modaddr = osd_modid2addr(ctx, modid);
     uint16_t psize = osd_get_max_pkt_len(ctx);
-    size_t numwords = size/2;
+    //size_t numwords = size/2;
 
     uint16_t *packet = malloc((psize+1)*2);
 
     struct osd_memory_descriptor *mem;
     mem = ctx->system_info->modules[modid].descriptor.memory;
+    
+    size_t numwords = size/(mem->data_width >> 3);
+    //size_t numflits = size/2;
 
     size_t hlen = 1; // control word
     hlen += ((mem->addr_width + 15) >> 4);
