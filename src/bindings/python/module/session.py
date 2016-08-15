@@ -52,8 +52,8 @@ class Memory(Module):
 	def __init__(self, id):
 		super(Memory, self).__init__(id, "MAM")
 
-	def loadelf(self, filename):
-		return python_osd_mem_loadelf(self.modid, filename)
+	def loadelf(self, filename, verify = false):
+		return python_osd_mem_loadelf(self.modid, filename, verify)
 
 class STM(Module):
 	def __init__(self, id):
