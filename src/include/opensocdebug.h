@@ -80,6 +80,10 @@ struct osd_memory_descriptor {
     } regions[];
 };
 
+struct osd_stm_descriptor {
+    uint16_t xlen;
+};
+
 static const int OSD_SUCCESS = 0;
 static const int OSD_E_GENERIC = 1;
 static const int OSD_E_CANNOTENUMERATE = 2;

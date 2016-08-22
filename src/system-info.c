@@ -104,6 +104,12 @@ int osd_system_enumerate(struct osd_context *ctx) {
                 osd_reg_read16(ctx, mod->addr, regbase+7, &tmp);
                 mem->regions[j].size |= ((uint64_t) tmp << 48);
             }
+        } else if (mod->type == OSD_MOD_STM) {
+            struct osd_stm_descriptor *stm;
+            stm = calloc(1, sizeof(struct osd_stm_descriptor));
+            mod->descriptor.stm = stm;
+
+            osd_reg_read16(ctx, mod->addr, 0x200, &stm->xlen);
         }
 
         osd_reg_read16(ctx, mod->addr, 1, &mod->version);
@@ -205,7 +211,12 @@ int osd_print_module_info(struct osd_context *ctx, uint16_t id,
     fprintf(fh, "%sversion: %04x\n", indentstring, mod->version);
 
     struct osd_memory_descriptor *mem;
+    struct osd_stm_descriptor *stm;
     switch (mod->type) {
+        case OSD_MOD_STM:
+            stm = mod->descriptor.stm;
+            fprintf(fh, "%sxlen: %d\n", indentstring, stm->xlen);
+            break;
         case OSD_MOD_MAM:
             mem = mod->descriptor.memory;
             fprintf(fh, "%sdata width: %d, ", indentstring,

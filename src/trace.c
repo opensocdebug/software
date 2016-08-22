@@ -30,26 +30,48 @@
 #include <stdlib.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <assert.h>
+
+struct stm_log_desc {
+    FILE *fh;
+    uint16_t xlen;
+};
 
 static void stm_log_handler (struct osd_context *ctx, void* arg, uint16_t* packet) {
-    FILE *fh = (FILE*) arg;
+    struct stm_log_desc *desc = (struct stm_log_desc*) arg;
+    FILE *fh = desc->fh;
+
     uint32_t timestamp;
     uint16_t id;
-    uint64_t value;
 
     timestamp = (packet[4] << 16) | packet[3];
     id = packet[5];
-    value = ((uint64_t)packet[9] << 48) | ((uint64_t)packet[8] << 32) | ((uint64_t)packet[7] << 16) | packet[6];
+    if (desc->xlen == 32) {
+        assert(packet[0] == 7);
+        uint32_t value;
 
-    fprintf(fh, "%08x %04x %016lx\n", timestamp, id, value);
+        value = ((uint32_t)packet[7] << 16) | packet[6];
+        fprintf(fh, "%08x %04x %08x\n", timestamp, id, value);
+    } else {
+        assert(packet[0] == 9);
+        uint64_t value;
+        value = ((uint64_t)packet[9] << 48) | ((uint64_t)packet[8] << 32) | ((uint64_t)packet[7] << 16) | packet[6];
+        fprintf(fh, "%08x %04x %016lx\n", timestamp, id, value);
+    }
+
     return;
 }
 
 OSD_EXPORT
 int osd_stm_log(struct osd_context *ctx, uint16_t modid, char *filename) {
-    FILE *fh = fopen(filename, "w");
+    struct osd_stm_descriptor *stm = ctx->system_info->modules[modid].descriptor.stm;
+    struct stm_log_desc *d = malloc(sizeof(struct stm_log_desc));
+
+    d->xlen = stm->xlen;
+    d->fh = fopen(filename, "w");
     osd_module_claim(ctx, modid);
-    osd_module_register_handler(ctx, modid, OSD_EVENT_TRACE, (void*) fh,
+
+    osd_module_register_handler(ctx, modid, OSD_EVENT_TRACE, (void*) d,
                                 stm_log_handler);
     osd_module_unstall(ctx, modid);
     return 0;
