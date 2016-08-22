@@ -38,7 +38,7 @@
 extern "C" {
 #endif
 
-/*
+/**
  * Opaque context object
  *
  * This object contains all state information. Create and initialize a new
