@@ -100,19 +100,24 @@ static int memory_test(struct osd_context *ctx, uint16_t mod,
 
     // Verify reading the hole memory
     unsigned int chunk;
-    unsigned int chunk_size = 10; /* read 10 blocks per chunk */
+    unsigned int chunk_size = 32*1024 / blocksize; /* read 32 kByte per chunk */
     unsigned int chunk_count = desc->regions[region].size / blocksize / chunk_size;
     for (chunk = 0; chunk < chunk_count; chunk++) {
         uint64_t chunk_addr_start = desc->regions[region].base_addr + chunk * chunk_size * blocksize;
         uint64_t chunk_addr_end = chunk_addr_start + (chunk_size * blocksize) - 1;
-        printf("Verifying chunk %d of %d from 0x%lx to 0x%lx...", chunk,
+        printf("Verifying chunk %d of %d from 0x%lx to 0x%lx ...", chunk,
                chunk_count, chunk_addr_start, chunk_addr_end);
+        fflush(stdout);
 
         // get reproducible random numbers to write and read back
         srand(chunk);
         fill_rand_bytes(wdata, chunk_size * blocksize);
 
+        printf(" write ... ");
+        fflush(stdout);
         osd_memory_write(ctx, mod, chunk_addr_start, wdata, chunk_size * blocksize);
+        printf(" read ... ");
+        fflush(stdout);
         osd_memory_read(ctx, mod, chunk_addr_start, rdata, chunk_size * blocksize);
 
         for (size_t i = 0; i < chunk_size; i++) {
