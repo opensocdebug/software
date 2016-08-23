@@ -134,10 +134,14 @@ int memory_tests(struct osd_context *ctx) {
     size_t num_memories;
     int success = 1;
 
-    osd_get_memories(ctx, &memories, &num_memories);
+    int rv = osd_get_memories(ctx, &memories, &num_memories);
+    if (rv != OSD_SUCCESS) {
+        printf("Unable to obtain a list of memories in the system.\n");
+        return 0;
+    }
 
     for (size_t m = 0; m < num_memories; m++) {
-        printf("Test memory %d\n", memories[m]);
+        printf("Test memory connected to MAM with ID %d\n", memories[m]);
         if (memory_test(ctx, memories[m], 0) != 0) {
             printf("Failed\n");
             success = 0;
@@ -145,6 +149,8 @@ int memory_tests(struct osd_context *ctx) {
             printf("Passed\n");
         }
     }
+
+    free(memories);
 
     return success;
 }
