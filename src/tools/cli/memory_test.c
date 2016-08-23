@@ -28,6 +28,14 @@
 
 #include <assert.h>
 
+static int fill_rand_bytes(uint8_t* data, size_t size)
+{
+    size_t i;
+    for (i = 0; i < size; i++) {
+        data[i] = rand() % 256;
+    }
+}
+
 static int memory_test(struct osd_context *ctx, uint16_t mod,
                        uint8_t region) {
     uint64_t addr;
@@ -44,7 +52,7 @@ static int memory_test(struct osd_context *ctx, uint16_t mod,
     assert(desc);
 
     // Bytes per block
-    blocksize = desc->data_width >> 3;
+    blocksize = desc->data_width / 8;
 
     // Perform one aligned write of one word
     addr = desc->regions[region].base_addr;
@@ -89,6 +97,33 @@ static int memory_test(struct osd_context *ctx, uint16_t mod,
     }
 
     printf("Test 1 passed\n");
+
+    // Verify reading the hole memory
+    unsigned int chunk;
+    unsigned int chunk_size = 10; /* read 10 blocks per chunk */
+    unsigned int chunk_count = desc->regions[region].size / blocksize / chunk_size;
+    for (chunk = 0; chunk < chunk_count; chunk++) {
+        uint64_t chunk_addr_start = desc->regions[region].base_addr + chunk * chunk_size * blocksize;
+        uint64_t chunk_addr_end = chunk_addr_start + (chunk_size * blocksize) - 1;
+        printf("Verifying chunk %d of %d from 0x%lx to 0x%lx...", chunk,
+               chunk_count, chunk_addr_start, chunk_addr_end);
+
+        // get reproducible random numbers to write and read back
+        srand(chunk);
+        fill_rand_bytes(wdata, chunk_size * blocksize);
+
+        osd_memory_write(ctx, mod, chunk_addr_start, wdata, chunk_size * blocksize);
+        osd_memory_read(ctx, mod, chunk_addr_start, rdata, chunk_size * blocksize);
+
+        for (size_t i = 0; i < chunk_size; i++) {
+            if (wdata[i] != rdata[i]) {
+                printf(" failed at address 0x%lx: wrote 0x%x, read 0x%x\n",
+                       chunk_addr_start + i, wdata[i], rdata[i]);
+                return -1;
+            }
+        }
+        printf(" passed\n");
+    }
 
 //    Byte-wise writing not implemented in MAM yet
 //
