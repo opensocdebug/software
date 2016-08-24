@@ -32,12 +32,55 @@
 #include <unistd.h>
 #include <assert.h>
 
+#define STM_PRINT_CHARS 256
+
 struct stm_log_desc {
     FILE *fh;
     uint16_t xlen;
+    char printf_buf[STM_PRINT_CHARS];
 };
 
-static void stm_log_handler (struct osd_context *ctx, void* arg, uint16_t* packet) {
+static void stm_simprint(struct osd_context *ctx, struct stm_log_desc* desc,
+                         uint32_t timestamp, char value) {
+    FILE *fh = desc->fh;
+
+    int do_print = 0;
+
+    /* simprint */
+    if (value == '\n') {
+        // Do the actual printf on newline
+        do_print = 1;
+    } else {
+        // Find the actual position of the character by iterating
+        for (unsigned int i = 0; i < (STM_PRINT_CHARS); i++) {
+            // If this is the current end of string..
+            if (desc->printf_buf[i] == '\0') {
+                // .. put the character on it
+                desc->printf_buf[i] = value;
+                // If we approach the end of the text width, we signal this
+                // with three dots and force printing
+                if (i == (STM_PRINT_CHARS)-4) {
+                    desc->printf_buf[STM_PRINT_CHARS-3] = '.';
+                    desc->printf_buf[STM_PRINT_CHARS-2] = '.';
+                    desc->printf_buf[STM_PRINT_CHARS-1] = '.';
+                    desc->printf_buf[STM_PRINT_CHARS] = '\0';
+                    do_print = 1;
+                } else {
+                    // otherwise simply mark new end
+                    desc->printf_buf[i+1] = '\0';
+                }
+                break;
+            }
+        }
+    }
+
+    if (do_print) {
+        fprintf(fh, "%08x %s\n", timestamp, desc->printf_buf);
+        desc->printf_buf[0] = '\0';
+    }
+}
+
+static void stm_log_handler(struct osd_context *ctx, void* arg, uint16_t* packet) {
     struct stm_log_desc *desc = (struct stm_log_desc*) arg;
     FILE *fh = desc->fh;
 
@@ -46,32 +89,37 @@ static void stm_log_handler (struct osd_context *ctx, void* arg, uint16_t* packe
 
     timestamp = (packet[4] << 16) | packet[3];
     id = packet[5];
+    uint64_t value;
+
     if (desc->xlen == 32) {
-        if(packet[0] != 7) {
+        if (packet[0] != 7) {
             assert((packet[2] >> 11) & 0x1);
 
             fprintf(fh, "Overflow, missed %d events\n", packet[3] & 0x3ff);
             return;
         }
-
-        uint32_t value;
 
         value = ((uint32_t)packet[7] << 16) | packet[6];
-        fprintf(fh, "%08x %04x %08x\n", timestamp, id, value);
+        fprintf(fh, "%08x %04x %08x\n", timestamp, id, (uint32_t)value);
     } else {
-        if(packet[0] != 9) {
+        if (packet[0] != 9) {
             assert((packet[2] >> 11) & 0x1);
 
             fprintf(fh, "Overflow, missed %d events\n", packet[3] & 0x3ff);
             return;
         }
-        uint64_t value;
         value = ((uint64_t)packet[9] << 48) | ((uint64_t)packet[8] << 32) | ((uint64_t)packet[7] << 16) | packet[6];
         fprintf(fh, "%08x %04x %016lx\n", timestamp, id, value);
     }
 
+    // Additionally convert printf() into character strings inside the log
+    if (id == 4) {
+        stm_simprint(ctx, desc, timestamp, value);
+    }
+
     return;
 }
+
 
 OSD_EXPORT
 int osd_stm_log(struct osd_context *ctx, uint16_t modid, char *filename) {
