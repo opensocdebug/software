@@ -47,13 +47,24 @@ static void stm_log_handler (struct osd_context *ctx, void* arg, uint16_t* packe
     timestamp = (packet[4] << 16) | packet[3];
     id = packet[5];
     if (desc->xlen == 32) {
-        assert(packet[0] == 7);
+        if(packet[0] != 7) {
+            assert((packet[2] >> 11) & 0x1);
+
+            fprintf(fh, "Overflow, missed %d events\n", packet[3] & 0x3ff);
+            return;
+        }
+
         uint32_t value;
 
         value = ((uint32_t)packet[7] << 16) | packet[6];
         fprintf(fh, "%08x %04x %08x\n", timestamp, id, value);
     } else {
-        assert(packet[0] == 9);
+        if(packet[0] != 9) {
+            assert((packet[2] >> 11) & 0x1);
+
+            fprintf(fh, "Overflow, missed %d events\n", packet[3] & 0x3ff);
+            return;
+        }
         uint64_t value;
         value = ((uint64_t)packet[9] << 48) | ((uint64_t)packet[8] << 32) | ((uint64_t)packet[7] << 16) | packet[6];
         fprintf(fh, "%08x %04x %016lx\n", timestamp, id, value);
