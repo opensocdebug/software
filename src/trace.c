@@ -75,7 +75,11 @@ static void stm_simprint(struct osd_context *ctx, struct stm_log_desc* desc,
     }
 
     if (do_print) {
+        // DEBUG: Also send to STDOUT
+        printf("%08x %s\n", timestamp, desc->printf_buf);
+
         fprintf(fh, "%08x %s\n", timestamp, desc->printf_buf);
+        fflush(fh);
         desc->printf_buf[0] = '\0';
     }
 }
