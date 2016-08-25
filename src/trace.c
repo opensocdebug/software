@@ -147,6 +147,7 @@ struct elf_function_table {
 
 struct ctm_log_handle {
     FILE    *fh;
+    uint16_t addr_width;
     size_t num_funcs;
     struct elf_function_table *funcs;
 };
@@ -166,12 +167,21 @@ static void ctm_log_handler (struct osd_context *ctx, void* arg, uint16_t* packe
     }
 
     timestamp = (packet[4] << 16) | packet[3];
-    npc = ((uint64_t)packet[8] << 48) | ((uint64_t)packet[7] << 32) | ((uint64_t)packet[6] << 16) | packet[5];
-    pc = ((uint64_t)packet[12] << 48) | ((uint64_t)packet[11] << 32) | ((uint64_t)packet[10] << 16) | packet[9];
-    modechange = (packet[13] >> 4) & 0x1;
-    call = (packet[13] >> 3) & 0x1;
-    ret = (packet[13] >> 2) & 0x1;
-    mode = packet[13] & 0x3;
+    size_t index;
+    if (log->addr_width == 64) {
+      npc = ((uint64_t)packet[8] << 48) | ((uint64_t)packet[7] << 32) | ((uint64_t)packet[6] << 16) | packet[5];
+      pc = ((uint64_t)packet[12] << 48) | ((uint64_t)packet[11] << 32) | ((uint64_t)packet[10] << 16) | packet[9];
+      index = 13;
+    } else {
+      assert(log->addr_width == 32);
+      npc = ((uint64_t)packet[6] << 16) | packet[5];
+      pc = ((uint64_t)packet[8] << 16) | packet[7];
+      index = 9;
+    }
+    modechange = (packet[index] >> 4) & 0x1;
+    call = (packet[index] >> 3) & 0x1;
+    ret = (packet[index] >> 2) & 0x1;
+    mode = packet[index] & 0x3;
 
     if (!log->funcs) {
         fprintf(log->fh, "%08x %d %d %d %d %016lx %016lx\n", timestamp, modechange, call, ret, mode, pc, npc);
@@ -224,7 +234,8 @@ OSD_EXPORT
 int osd_ctm_log(struct osd_context *ctx, uint16_t modid, char *filename, char *elffile) {
     struct ctm_log_handle *log = malloc(sizeof(struct ctm_log_handle));
     log->fh = fopen(filename, "w");
-
+    struct osd_ctm_descriptor *ctm = ctx->system_info->modules[modid].descriptor.ctm;
+    log->addr_width = ctm->addr_width;
     log->num_funcs = 0;
     log->funcs = 0;
     // Load the symbols from ELF
