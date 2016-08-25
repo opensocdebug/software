@@ -124,7 +124,7 @@ static void stm_log_handler(struct osd_context *ctx, void* arg, uint16_t* packet
 OSD_EXPORT
 int osd_stm_log(struct osd_context *ctx, uint16_t modid, char *filename) {
     struct osd_stm_descriptor *stm = ctx->system_info->modules[modid].descriptor.stm;
-    struct stm_log_desc *d = malloc(sizeof(struct stm_log_desc));
+    struct stm_log_desc *d = calloc(sizeof(struct stm_log_desc), 1);
 
     d->xlen = stm->xlen;
     d->fh = fopen(filename, "w");
