@@ -36,6 +36,7 @@
 
 struct stm_log_desc {
     FILE *fh;
+    uint16_t id;
     uint16_t xlen;
     char printf_buf[STM_PRINT_CHARS];
 };
@@ -76,7 +77,7 @@ static void stm_simprint(struct osd_context *ctx, struct stm_log_desc* desc,
 
     if (do_print) {
         // DEBUG: Also send to STDOUT
-        printf("%08x %s\n", timestamp, desc->printf_buf);
+        printf("[STM %03d] %08x %s\n", desc->id, timestamp, desc->printf_buf);
 
         fprintf(fh, "%08x %s\n", timestamp, desc->printf_buf);
         fflush(fh);
@@ -132,6 +133,7 @@ int osd_stm_log(struct osd_context *ctx, uint16_t modid, char *filename) {
 
     d->xlen = stm->xlen;
     d->fh = fopen(filename, "w");
+    d->id = modid;
     osd_module_claim(ctx, modid);
 
     osd_module_register_handler(ctx, modid, OSD_EVENT_TRACE, (void*) d,
