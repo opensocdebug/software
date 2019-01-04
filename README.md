@@ -1,3 +1,8 @@
+This repository hosts the *OLD* and *ABANDONED* code of the Open SoC Debug host software.
+The current host software is available at https://github.com/opensocdebug/osd-sw.
+
+----------
+
 This is the host software library and daemon for the Open SoC Debug
 project.
 
